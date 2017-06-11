@@ -1,0 +1,276 @@
+---
+title: "A Practical Introductory Tutorial on Principal Component Analysis"
+output: github_document
+author: "Henry Castellanos"
+---
+
+### *This is an example of an R Markdown document I wrote to help myself understand Principal Component Analysis. Eventually, I began using documents like this as the basis (i.e. training material) for helping consulting practitioners at the various firms i've worked for learn basic machine learning. While in grad school I took a particular interest in multivariate analysis (unsupervised learning) methods once I understood the importance of exploratory data analysis in supervised / econometric / modelling exercises, etc.*  
+
+#**Data Mining with Principal Component Analysis**  
+
+Data Mining is, "the nontrivial extraction of implicit, previously unknown and potentially useful information from data." **(An Introduction to Applied Multivariate Analysis,1)** Principal component analysis (PCA) is one of the most fundamental, sophisticated data mining techniques that has many applications (and implications) in analysis. In fact, many texts on data mining begin with an explanation of principal component analysis. 
+
+In terms of machine learning, PCA falls under the category of unsupervised learning since there is no explicit target variable or dependent variable that is central to the analysis itself. Rather, the goal of PCA, much like related methods for multivariate analysis of data, is to attempt to detect "possibly unanticipated patterns in the data, opening up a wide range of competing explanations. Such methods are generally characterised both by an emphasis on the importance of graphical displays and visualisation of the data and the lack of any associated probabilistic model that would allow for formal inferences." **(An Introduction to Applied Multivariate Analysis,2)** 
+
+Furthermore, because results are easy to interpret and the algorithm is relatively easy to understand computationally, it's a very popular and useful technique to leverage in **explanatory data analysis.**
+
+##**How is PCA useful?**  
+
+In a strictly applied sense, PCA is useful for figuring out which variables in a data set are the most important, or which variable(s) account for most of the variation (variance) in the data. **Note that we are implying that variance is a proxy for information.** Assuming there is more signal than noise in the data, a relatively harmless assumption in most data, we can employ PCA to help us identify which variables contain the most explanatory power or information. In so doing we can discover dynamics (i.e. multivariate relationships in the data) as well as hidden structure (i.e. latent variables) in the data. 
+
+Even though PCA is an unsupervised learning technique, it is useful for dealing with modeling problems such as multicollinearity and over-fitting making it particularly helpful when estimating predictive models. 
+
+PCA helps make these kinds of inferences **by reducing the dimensionality of the data OR combining / condensing variables into a fewer number of variables or columns called principal components (PC's).** Dimensionality reduction refers to the transformation of an underlying data frame into an equivalent data frame with **fewer number of columns.**  
+
+Put another way, PCA helps us capture as much information (up to and including 100% of the variance or information) in the data in fewer number of variables or columns. 
+
+In summary, PCA provides the following benefits by capturing the variance in the data in fewer number of columns:
+
+1. Rank-order variables in terms of relative importance or variance explained
+2. Visualize high-dimensional data in two dimensions 
+3. Deal with statistical problems such as multicollinearity
+4. Filter noise from the data to avoid over-fitting predictive models
+
+In the following 3 sections, we are going to see these benefits materialize through practical applications of principal component analysis. **We start with a motivating example** to build some intuition behind the fundamental mechanism in PCA. 
+
+##**Motivation : Reconstructing an image using Principle Components**  
+
+![Boat Image](/Users/Unholi/Documents/BME Research & Data/BME 7310/boats.png) 
+
+**What exactly does it mean to capture the most information possible in fewer number of columns?** 
+
+(Note: We refer to columns as variables and variables as columns interchangeably. In general, columns of data are referred to as variables for statistical analysis. In this specific example, it's more intuitive to refer to columns than variables since each column of data isn't necessarily a variable in any analytical sense but rather literally another column of pixel data.)  
+
+One way to see the intuition behind the above statement is to use PCA to reconstruct an image using the derived principal components.
+
+Leveraging some toolboxes available in Matlab, we can decompose the above image into a table of pixel data, where each column contains the underlying pixels for the above image from left to right. Thus, the pixels that make up the left-most part of the above image are stored in the first column, etc. 
+
+The complete data set of pixels has **576 rows and 720 columns.** In other words, it takes 720 columns of pixel data, such as is shown in the data sample below, to render the above image. 
+
+```{r,echo=FALSE, warning=FALSE, message=FALSE}
+setwd("/Users/Unholi/Documents/Data Science Trainings/R Markdown PCA Tutorial/") #update to your directory
+library(R.matlab) #you may need to install these packages and any dependencies before running this code
+library(DT) #package for javascript rendering of HTML tables
+library(ggplot2)
+library(Rmisc)
+```
+
+```{r, warning=FALSE, echo=FALSE }
+#read in data
+pixel<-readMat("data.mat") #the image has already been decomposed into a data frame in Matlab;
+                           #We are using the R.matlab package to read in that Matlab file into R
+pixeldf<-data.frame(pixel)#convert from list to data frame
+
+datatable(pixeldf, colnames = c('ID' = 1), options = list(
+            columnDefs = list(list(className = 'dt-center', targets = 5)),
+            scrollX=TRUE,
+            scrollCollapse=TRUE),
+           caption = 'Pixel Data Frame: Table showing image data transformed into values representing image pixels')
+#head(pixeldf[,1:10]) #Take a quick look at the first 10 columns of pixeldf
+```
+
+What if we could render the above image with only **1%** of the columns in the pixel data frame? In other words, what if we could render the above image with acceptable fidelity using no more than **10** columns of the original pixel data frame? **Principal component analysis makes this possible.** 
+
+Once Again, **principal component analysis captures as much information as possible in fewer number of columns.** PCA does this by combining the columns of pixel data from the boats image into fewer number of columns called principal components. This is an important point. Each principal component constructed is a new column of data with the same row dimension (i.e. column length) as columns in the underlying data frame.   
+
+In PCA, the first principal component constructed accounts for **most** of the variance or information across all columns of data. In this example, however, the first principal component alone won't capture enough of the information (variance or variation) in the data to be able to render the image with acceptable fidelity. In other words, PCA is not able to capture a **threshold** or critical amount of variance or information to render the image with only 1 principal component.  
+
+```{r, warning=FALSE}
+#Run principal component analysis ~ prcomp method from Base R stats package
+prComp<-prcomp(pixeldf,center=FALSE,scale=FALSE) #do not scale data ~ already centered in Matlab
+names(prComp) #this will show what objects the prcomp method returns
+
+#Name matrix constructs returned the same names as what is referred to in the literature
+coeff <-prComp$rotation 
+score <-prComp$x
+
+#show a sample of the principal components data frame
+datatable(score, options = list(
+            scrollX=TRUE,
+            scrollCollapse=TRUE),
+          caption = 'Score Data Frame: Table containing constructed principal components')
+
+coeffM <- as.matrix(coeff) #converting to matrices for matrix multiplication in reconstructing image
+scoreM <- as.matrix(score)
+```
+
+Since this is image data, we want to show that we can **re-construct the original image** with **certain** number of principal components. As we use more and more principal components to reconstruct the image we are eventually able to render a sufficiently clear picture to make out the original image. Doing so involves clever matrix multiplication using some of the **underlying constructs** the PCA algorithm returns. 
+
+For our purposes here **the details of the matrix algebra are not important.** Simply put, we are using a matrix of N principal components, where **each principal component is a new column of data representing a proportion of the variance or information across all columns in the original data frame**, to reconstruct the original data frame and re-render the image.
+
+The below collage shows the increasing clarity and fidelity of our boats image reconstructed using more and more principal components in combination. The coloration of the pixels is not important for our analysis and has to do with how the render image function in R reads pixel data. 
+
+```{r, fig.width = 12, fig.height=10}
+#create an empty list object and fill it with coeffM so that each list object matrix of coeff vectors
+#has increasing rank
+
+#create for loop counter 
+pc <- as.numeric(c(1,2,5,10,30,576)) #number of principal components to reconstruct image with
+
+c<-list()
+for (i in pc) {
+  c[[i]] <- coeffM[,1:i] }
+#to understand the above logic, print c[1], c[2], etc.
+
+#create a zero matrix to be used in reconstructing underlying data
+zeroMat<-matrix(c(rep(0)),ncol=576,nrow=720)
+
+par(mfrow = c(2,3))
+for (i in pc) {
+  image.name <- paste(i, 'Principal Components', sep=" ") #create image name object
+  coeffMR<-cbind(data.frame(c[i])[1:720,],zeroMat[1:720,1:576])
+  coeffMR<-data.frame(coeffMR[,1:576])
+  recon<-scoreM%*%t(coeffMR) #matrix multiplication of constructs returned from prcomp method
+  image(t(recon) [,nrow(recon):1],main=image.name)#view reconstructed image using n principal components
+}
+
+```
+
+When we first run PCA, it constructs as many principal components as necessary to capture 100% of the variation or information in the underlying data. In this example it turns out that we can capture 100% of the information in **576** principal components. Note that we have gone from **720** columns in the original underlying data frame to **576** columns in our new principal components data frame. In other words, **we have reduced the dimensionality of the data.** 
+
+For most applications of PCA, figuring out how many principal components are needed to **accomplish a particular objective** is required. In this image reconstruction application, **10** principal components is enough to be able to render the image with acceptable fidelity so we can make out what the image is about. 
+
+**Using 10** principal components represents a considerably more extreme dimensionality reduction of our data than does using all principal components constructed, but the **trade-off** is that we have captured **the minimum threshold** of variance or information required to make out the image with acceptable fidelity.
+  
+If we reconstruct the image using all of the principal components (i.e. 576) we get roughly the same image as we get from the raw data itself. 
+
+Finally, reconstructing the image using **30** principal components, where 30 principal components accounts for **4%** of the original number of columns in our pixel data, shows visually, how we have captured most of the critical information in the image in fewer number of columns **and** accomplished our objective of rendering the image with as high fidelity and clarity as possible. 
+
+##**Introduction to Scree Plots and Variance Explained** 
+
+As was mentioned previously, PCA constructs principal components until 100% of the variance is captured or explained across **all** the principal components together (i.e. cumulatively).
+
+Often, the result is that the number of principal components required to capture 100% of the variance in the data is **less** than the original number of columns in the original data frame. Thus, PCA achieves a total dimensionality reduction of the original data. This is not always the case, however. (**We'll revisit this when exploring how PCA filters noise from the data**) 
+
+Moreover, the principal components are constructed so that each subsequent principal component captures a smaller and smaller proportion of the total variance in the underlying data.
+
+Therefore, the first principal component, which we will refer to as PC1 or principal component 1, always captures the **MOST** variance of all principal components. In other words, principal component 1 captures the **largest proportion** of overall variance or total variance in the underlying data. 
+
+Principal Component 2, or PC2, captures the 2nd largest proportion of the total variance and more than principal components 3 through n, etc. 
+
+One analytical tool that we can employ to analyze the proportion of variance explained by each principal component is called a **Scree Plot**. A Scree plot shows the proportion or percentage of variance explained **by each principal component.** A scree plot is a fundamental tool used to understand the results returned from running PCA on data.
+
+
+```{r, fig.width = 12, fig.height=8, warning=FALSE}
+#From previously run principal component analysis ~ prcomp method from Base R stats package
+#show objects the prcomp method returns; the sdev object or construct returned
+#contains the values we'll need in order to calculate the percent variance explained by each component
+
+names(prComp) #this will show what objects the prcomp method returns
+
+var_exp <- ((prComp$sdev)^2 / sum((prComp$sdev)^2)) 
+#sdev returns square root of the eigen value associated with each component; basic unit being plotted in Scree plot
+
+#need to create x-axis explicitly for ggplot2 graphic
+PC.index <- seq_along(var_exp)
+
+pixeldf <- cbind(pixeldf,var_exp, PC.index) #bind above vector to original data frame as variable. ggplot requires data frames and variables
+
+#using ggplot2
+g <- ggplot(pixeldf , aes(PC.index,var_exp))
+
+p1<- g + geom_point() + scale_x_continuous(breaks = seq(0, 576, 30))+ 
+         scale_y_continuous(breaks = seq(0, 1, .1),labels = scales::percent) +
+         labs(x="Principal Component", y= "Percent Variance Explained") +
+         ggtitle("Scree Plot")
+    
+#zoomed into the x-axis
+p2<- g + geom_point() + 
+  scale_x_continuous (breaks = seq(0, 576, 30)) + 
+  scale_y_continuous(breaks = seq(0, 1, .1),labels = scales::percent) +
+  coord_cartesian(xlim=(c(0,20))) + 
+  scale_x_continuous(limits=(c(0,20))) +
+  labs(x="Principal Component", y= "Percent Variance Explained") +
+  ggtitle("Scree Plot (Zoomed View")
+
+multiplot(p1, p2, cols=2)
+```
+
+####Below is an interactive scree plot. Use it to take a closer look at the bend in the curve and understand why it can be difficult to find a true bend point in the curve.
+  
+```{r,echo=FALSE}
+
+library(rbokeh)
+ p <- figure(title="Interactive Scree Plot", toolbar_location="above") %>%
+      ly_points(pixeldf$var_exp) %>%
+      y_axis(label="Percent Variance Explained", number_formatter = "numeral", format = "%0.00") %>%
+      x_axis(label = "Principal Component")
+```
+
+
+```{r, echo=FALSE}
+p
+
+```
+
+
+***
+
+
+Unfortunately, a scree plot alone doesn't indicate how many principal components are required to accomplish any particular objective. Additional tools are required to understand and interpret the percent variance explained by each component (to accomplish the particular objective).   
+
+We introduce the concept of a heuristic, defined as, "any approach to problem solving, learning, or discovery that employs **a practical method not guaranteed to be optimal or perfect**, but sufficient for the immediate goal." 
+
+One heuristic we can use to determine an approximately optimal number of principal components, balancing the **trade-off** between dimensionality-reduction and percent variance explained, is to choose N principal components until the **marginal increase** in variance explained from retaining an additional principal component is approximately zero. 
+
+**In the above scree plot** constructed from running PCA on the image data, we see that the marginal increase approaches zero around the time the curve bends. Thus, we want to choose the number of principal components (**along the x-axis**) corresponding to a break, elbow, or bend in the curve. It is easy to see the connection of this heuristic method to optimization problems in Calculus; we optimize where the derivative (i.e. margin or marginal effect) of our objective function equals 0.
+
+In this specific example, the number of principal components we need to choose serves as the input to our image reconstruction algorithm. As was mentioned above, we can see from iterating through images reconstructed with varying number of principal components, that it takes at least **10** principal components before we reach a threshold percent of variance explained to make out the image with any **acceptable level of fidelity**. Reconstructing the image with **fewer than 10 principal components** does not render the image with acceptable fidelity.  
+
+**10 principal components corresponds to the bend point in our Scree plot** where it appears that the marginal increase in percent variance explained from an additional principal component is approaching or is approximately zero. 
+
+Nevertheless, it's important to remember that this technique is an approximation to achieving an optimal outcome (**it's a heuristic!**). Looking at the Scree plot with cumulative percent variance explained on the **y-axis**, we can see that increasing the number of principal components retained or choosen to **30** allows us to capture an additional **9-10%** of the variance or information in the data.
+
+```{r, fig.width = 12, fig.height=8, warning=FALSE}
+cum_var_exp <- cumsum(prComp$sdev^2 / sum(prComp$sdev^2))
+pixeldf<-cbind(pixeldf,cum_var_exp)
+
+g <- ggplot(pixeldf , aes(PC.index,cum_var_exp))
+
+p1<- g + geom_point() + scale_x_continuous(breaks = seq(0, 576, 30))+ 
+  scale_y_continuous(breaks = seq(0, 1, .1),labels = scales::percent) +
+  labs(x="Principal Component", y= "Percent Variance Explained") +
+  ggtitle("Scree Plot")
+
+#zoom into the x-axis
+p2<- g + geom_point() + 
+  scale_x_continuous (breaks = seq(0, 576, 30)) + 
+  scale_y_continuous(breaks = seq(0, 1, .1),labels = scales::percent) +
+  coord_cartesian(xlim=(c(0,40))) + 
+  scale_x_continuous(limits=(c(0,40))) +
+  labs(x="Principal Component", y= "Percent Variance Explained") +
+  ggtitle("Scree Plot (Zoomed View")
+
+multiplot(p1, p2, cols=2)
+
+```
+
+####Below is an interactive scree plot. Use it to take a closer look at the bend in the curve and understand why it can be difficult to find a true bend point in the curve. 
+
+  
+```{r, echo=FALSE}
+
+p <-figure(title = "Interactive Scree Plot", toolbar_location="above") %>%
+    ly_points(pixeldf$cum_var_exp) %>%
+    y_axis(label="Cumulative Percent Variance Explained", number_formatter = "numeral", format = "%0.00") %>%
+    x_axis(label = "Principal Component")  
+```
+
+```{r,echo=FALSE}
+p
+
+```
+
+
+***
+
+
+Relatively speaking, this is a small "price" to pay in terms of achieving a lower dimensionality reduction of the data because the **lift** in image quality or fidelity is significant (**just look at the difference between the image reconstructed with 10 principal components versus 30**). Notice also that 30 principal components corresponds to the point along the cumulative curve where the marginal increase in cumulative percent variance explained **begins** to approach zero.
+
+10 principal components represents **1%** of the original column dimension of our data (i.e. 10/720) whereas 30 represents approximately **4%**. With 30 principal components we have still achieved a considerable reduction in the dimensionality of our data but have also **simultaneously** captured as much information or variance as possible or as is necessary, in this case, to render the image with a high level of fidelity. **Again, we have captured a significant amount of information in fewer number of columns.**
+
+Finally, it is important to note that there isn't a "right" or definitive answer of how many components to keep in every application. As was mentioned above, if we were to use all **576** principal components to reconsruct the image, we have still achieved a respectable dimensionality reduction of our data from 720 columns to 576. In some applications, dimensionality reduction may be more important than percent variance explained.
+
+Nevertheless, this is difficult to determine indefinitely because there is no established threshold for percent variance explained that is required to accomplish any particular objective. There always exists a **trade-off** between reducing dimensionality and capturing information across n principal components. 
+
+What is imporant is realizing that PCA solves both the dimensionality-reduction problem and the statistical problem of capturing the most relevant information **simultaneously**. From there we leverage context, experience, and heuristics / analytical tools such as a Scree plot to make the necessary inferences to achieve the sought after outcome or benefit from the analysis.
