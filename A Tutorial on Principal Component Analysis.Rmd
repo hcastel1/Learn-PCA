@@ -1,6 +1,7 @@
 ---
 title: "A Practical Introductory Tutorial on Principal Component Analysis"
 output: github_document
+always_allow_html: yes
 author: "Henry Castellanos"
 ---
 
@@ -35,7 +36,7 @@ In the following 3 sections, we are going to see these benefits materialize thro
 
 ##**Motivation : Reconstructing an image using Principle Components**  
 
-![Boat Image](/Users/Unholi/Documents/BME Research & Data/BME 7310/boats.png) 
+![Boat Image](boats.png) 
 
 **What exactly does it mean to capture the most information possible in fewer number of columns?** 
 
@@ -48,7 +49,7 @@ Leveraging some toolboxes available in Matlab, we can decompose the above image 
 The complete data set of pixels has **576 rows and 720 columns.** In other words, it takes 720 columns of pixel data, such as is shown in the data sample below, to render the above image. 
 
 ```{r,echo=FALSE, warning=FALSE, message=FALSE}
-setwd("/Users/Unholi/Documents/Data Science Trainings/R Markdown PCA Tutorial/") #update to your directory
+#setwd("/Users/Unholi/Documents/Data Science Trainings/R Markdown PCA Tutorial/") #update to your directory
 library(R.matlab) #you may need to install these packages and any dependencies before running this code
 library(DT) #package for javascript rendering of HTML tables
 library(ggplot2)
