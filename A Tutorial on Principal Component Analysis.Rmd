@@ -1,7 +1,7 @@
 ---
 title: "A Practical Introductory Tutorial on Principal Component Analysis"
-output: github_document
-always_allow_html: yes
+output: html_document
+keep_md: TRUE
 author: "Henry Castellanos"
 ---
 
